@@ -27,9 +27,7 @@ st.markdown("""
     /* 控制面板標籤 */
     .control-label { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
     
-    /* ==========================================
-       【極致美化】Streamlit Slider (滑動條)
-       ========================================== */
+    /* Streamlit Slider (滑動條) */
     div[data-baseweb="slider"] { margin-top: 10px; padding-bottom: 10px; }
     div[data-baseweb="slider"] > div { background-color: #e2e8f0; }
     
@@ -78,7 +76,7 @@ st.markdown("""
         .controls-row, .system-desc { display: none !important; }
         .block-container { padding: 0 !important; max-width: 100% !important; }
         .custom-card { border: 1px solid #ccc; box-shadow: none; break-inside: avoid; }
-        iframe { display: none !important; } /* 隱藏 Print 按鈕本身 */
+        iframe { display: none !important; }
     }
 
     @media (max-width: 768px) {
@@ -98,7 +96,6 @@ with col_title:
     st.markdown("<h1 style='font-size: 32px; font-weight: 800; color: #0f172a; margin: 0;'>Pillow Selection System</h1>", unsafe_allow_html=True)
 
 with col_print:
-    # 穿透 Streamlit 保安機制的真實 Print 按鈕 (window.parent.print)
     components.html(
         """
         <style>
@@ -147,12 +144,11 @@ ALL_SIZES_SHORT = ['Std', 'Q', 'K']
 SIZE_FULL_NAMES = {'Std': 'Standard Size', 'Q': 'Queen Size', 'K': 'King Size'}
 
 # ==========================================
-# 4. 控制面板 (加入 st.container 方便列印時隱藏)
+# 4. 控制面板
 # ==========================================
 controls_container = st.container()
 
 with controls_container:
-    # 增加 CSS class 給這個容器以在列印時隱藏
     st.markdown('<div class="controls-row">', unsafe_allow_html=True)
     c1, c2, c3 = st.columns([1.5, 3, 1.2])
 
@@ -162,8 +158,12 @@ with controls_container:
 
     if '50%' in mode:
         min_f, max_f, def_f, force_col = 1000, 3000, 2000, 'Force_50_g'
+        # 定義 50% 的分區範圍
+        z_soft, z_med, z_firm = [1000, 1500], [1500, 2500], [2500, 3000]
     else:
         min_f, max_f, def_f, force_col = 2000, 4000, 3000, 'Force_33_g'
+        # 定義 33% 的分區範圍 (按比例順延)
+        z_soft, z_med, z_firm = [2000, 2500], [2500, 3500], [3500, 4000]
 
     if "my_slider" not in st.session_state:
         st.session_state.my_slider = def_f
@@ -182,7 +182,6 @@ with controls_container:
 
     with c2:
         st.markdown("<div class='control-label' style='text-align: center;'>Target Firmness Force</div>", unsafe_allow_html=True)
-        # 【修正】step=1，現在每一克都可以被選擇
         st.slider(
             "Target Force Slider", 
             min_value=min_f, 
@@ -195,7 +194,6 @@ with controls_container:
 
     with c3:
         st.markdown("<div class='control-label' style='text-align: right;'>Exact Force (g)</div>", unsafe_allow_html=True)
-        # 【修正】step=1，現在打任何數字都會完全同步
         st.number_input(
             "Exact Grams Input", 
             min_value=min_f, 
@@ -212,9 +210,22 @@ target_force = st.session_state.my_slider
 st.markdown("<hr style='border:none; border-top:1px solid #e2e8f0; margin: 15px 0 25px 0;'>", unsafe_allow_html=True)
 
 # ==========================================
-# 5. 圖表
+# 5. 圖表 (新增顏色分區)
 # ==========================================
 fig = go.Figure()
+
+# 繪製背景顏色區塊 (Soft, Medium, Firm)
+# Soft 區 (淺藍)
+fig.add_vrect(x0=z_soft[0], x1=z_soft[1], fillcolor="#e0f2fe", opacity=0.6, layer="below", line_width=0, 
+              annotation_text="<b>SOFT</b>", annotation_position="top left", annotation_font_color="#0369a1", annotation_font_size=13)
+# Medium 區 (淺黃)
+fig.add_vrect(x0=z_med[0], x1=z_med[1], fillcolor="#fef08a", opacity=0.4, layer="below", line_width=0, 
+              annotation_text="<b>MEDIUM</b>", annotation_position="top left", annotation_font_color="#a16207", annotation_font_size=13)
+# Firm 區 (淺紅)
+fig.add_vrect(x0=z_firm[0], x1=z_firm[1], fillcolor="#fee2e2", opacity=0.6, layer="below", line_width=0, 
+              annotation_text="<b>FIRM</b>", annotation_position="top left", annotation_font_color="#b91c1c", annotation_font_size=13)
+
+
 grid_data = {}
 
 for loft in ALL_LOFTS:
@@ -238,7 +249,8 @@ fig.update_layout(
     yaxis=dict(showgrid=True, gridcolor='#f1f5f9'),
     legend=dict(orientation="h", y=1.1, x=0.5, xanchor="center")
 )
-fig.add_vline(x=target_force, line_dash="dash", line_color="#ef4444")
+# 將垂直紅線加粗，突出顯示當前選擇
+fig.add_vline(x=target_force, line_dash="solid", line_color="#ef4444", line_width=2.5)
 
 st.plotly_chart(fig, width='stretch', config={'displayModeBar': False})
 
