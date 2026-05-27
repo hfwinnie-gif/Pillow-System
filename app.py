@@ -46,21 +46,32 @@ st.markdown("""
     div[data-baseweb="slider"] [role="slider"]:active { cursor: grabbing !important; }
     div[data-testid="stThumbValue"] { display: none !important; } 
     
-    /* 卡片設計 */
+    /* 卡片設計與預設狀態 */
     .loft-head-box { text-align: center; height: 100%; display: flex; flex-direction: column; justify-content: center; padding-top: 10px; }
     .loft-title { font-size: 36px; font-weight: 800; color: #0f172a; line-height: 1; }
     .loft-sub { font-size: 12px; font-weight: 600; color: #64748b; margin-top: 5px; }
 
     .custom-card { 
         background: #f8fafc; padding: 15px 10px; border-radius: 12px; text-align: center; 
-        transition: all 0.3s ease; border: 1px solid #f1f5f9; height: 100%; 
+        transition: all 0.3s ease; border: 2px solid #f1f5f9; height: 100%; 
         display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: default; 
     }
     .custom-card:hover { 
-        transform: translateY(-4px); background-color: #e2e8f0; border-color: #cbd5e1;
+        transform: translateY(-4px); 
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); 
     }
-    .custom-card.empty:hover { background-color: #f1f5f9; }
+    
+    /* 【新增】卡片三色分區動態樣式 */
+    .custom-card.zone-soft { background-color: #f0f9ff; border-color: #bae6fd; }
+    .custom-card.zone-soft:hover { background-color: #e0f2fe; border-color: #7dd3fc; }
+    
+    .custom-card.zone-med { background-color: #fefce8; border-color: #fde047; }
+    .custom-card.zone-med:hover { background-color: #fef08a; border-color: #facc15; }
+    
+    .custom-card.zone-firm { background-color: #fef2f2; border-color: #fecaca; }
+    .custom-card.zone-firm:hover { background-color: #fee2e2; border-color: #fca5a5; }
+
+    .custom-card.empty:hover { background-color: #f1f5f9 !important; }
 
     .badge { padding: 5px 14px; border-radius: 20px; font-size: 11px; font-weight: 800; color: white; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.5px; }
     .badge.std { background: #3b82f6; }
@@ -75,7 +86,7 @@ st.markdown("""
     @media print {
         .controls-row, .system-desc { display: none !important; }
         .block-container { padding: 0 !important; max-width: 100% !important; }
-        .custom-card { border: 1px solid #ccc; box-shadow: none; break-inside: avoid; }
+        .custom-card { box-shadow: none; break-inside: avoid; border-width: 1px; }
         iframe { display: none !important; }
     }
 
@@ -158,11 +169,9 @@ with controls_container:
 
     if '50%' in mode:
         min_f, max_f, def_f, force_col = 1000, 3000, 2000, 'Force_50_g'
-        # 定義 50% 的分區範圍
         z_soft, z_med, z_firm = [1000, 1500], [1500, 2500], [2500, 3000]
     else:
         min_f, max_f, def_f, force_col = 2000, 4000, 3000, 'Force_33_g'
-        # 定義 33% 的分區範圍 (按比例順延)
         z_soft, z_med, z_firm = [2000, 2500], [2500, 3500], [3500, 4000]
 
     if "my_slider" not in st.session_state:
@@ -207,21 +216,26 @@ with controls_container:
 
 target_force = st.session_state.my_slider
 
+# 【新增】判斷當前力度屬於哪個 Zone，並賦予對應的 CSS 類別
+if target_force <= z_soft[1]:
+    current_zone_class = "zone-soft"
+elif target_force <= z_med[1]:
+    current_zone_class = "zone-med"
+else:
+    current_zone_class = "zone-firm"
+
 st.markdown("<hr style='border:none; border-top:1px solid #e2e8f0; margin: 15px 0 25px 0;'>", unsafe_allow_html=True)
 
 # ==========================================
-# 5. 圖表 (新增顏色分區)
+# 5. 圖表 (圖表顏色分區)
 # ==========================================
 fig = go.Figure()
 
-# 繪製背景顏色區塊 (Soft, Medium, Firm)
-# Soft 區 (淺藍)
+# 繪製背景顏色區塊
 fig.add_vrect(x0=z_soft[0], x1=z_soft[1], fillcolor="#e0f2fe", opacity=0.6, layer="below", line_width=0, 
               annotation_text="<b>SOFT</b>", annotation_position="top left", annotation_font_color="#0369a1", annotation_font_size=13)
-# Medium 區 (淺黃)
 fig.add_vrect(x0=z_med[0], x1=z_med[1], fillcolor="#fef08a", opacity=0.4, layer="below", line_width=0, 
               annotation_text="<b>MEDIUM</b>", annotation_position="top left", annotation_font_color="#a16207", annotation_font_size=13)
-# Firm 區 (淺紅)
 fig.add_vrect(x0=z_firm[0], x1=z_firm[1], fillcolor="#fee2e2", opacity=0.6, layer="below", line_width=0, 
               annotation_text="<b>FIRM</b>", annotation_position="top left", annotation_font_color="#b91c1c", annotation_font_size=13)
 
@@ -249,13 +263,12 @@ fig.update_layout(
     yaxis=dict(showgrid=True, gridcolor='#f1f5f9'),
     legend=dict(orientation="h", y=1.1, x=0.5, xanchor="center")
 )
-# 將垂直紅線加粗，突出顯示當前選擇
 fig.add_vline(x=target_force, line_dash="solid", line_color="#ef4444", line_width=2.5)
 
 st.plotly_chart(fig, width='stretch', config={'displayModeBar': False})
 
 # ==========================================
-# 6. Grid 顯示區 
+# 6. Grid 顯示區 (卡片動態顏色)
 # ==========================================
 st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
 
@@ -278,8 +291,9 @@ for loft in ALL_LOFTS:
             
             with row_cols[idx + 1]:
                 if isinstance(result, (int, float)):
+                    # 【套用 current_zone_class】讓卡片底色跟隨上方分區顏色！
                     st.markdown(f"""
-                        <div class="custom-card">
+                        <div class="custom-card {current_zone_class}">
                             <span class="badge {badge_color_class}">{full_size_name}</span>
                             <div style="display: flex; align-items: baseline; justify-content: center;">
                                 <span class="oz-val" style="margin: 0; padding: 0; line-height: 1;">{result:.1f}</span>
@@ -288,8 +302,9 @@ for loft in ALL_LOFTS:
                         </div>
                     """, unsafe_allow_html=True)
                 else:
+                    # 無資料的虛線框維持透明
                     st.markdown(f"""
-                        <div class="custom-card empty" style="border-style: dashed; background: transparent;">
+                        <div class="custom-card empty" style="border-style: dashed; background: transparent !important; border-color: #cbd5e1 !important;">
                             <span class="badge {badge_color_class}" style="opacity: 0.5;">{full_size_name}</span>
                             <div class="no-data-text" style="margin: 0; padding: 0;">{result}</div>
                         </div>
