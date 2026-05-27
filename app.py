@@ -1,88 +1,133 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from streamlit_gsheets import GSheetsConnection
 
+# ==========================================
 # 1. 頁面基本設定
+# ==========================================
 st.set_page_config(page_title="Pillow Selection System", layout="wide", initial_sidebar_state="collapsed")
 
-# 2. 原汁原味舊 HTML 核心樣式注入 (這次只專注卡片內部與全網頁背景，骨架交給 Streamlit)
+# ==========================================
+# 2. 終極美學、手機支援 CSS
+# ==========================================
 st.markdown("""
 <style>
-    /* 全局背景與字體還原 */
-    :root { --bg: #f8f9fa; --surface: #ffffff; --text: #1f2937; }
-    .stApp { background-color: var(--bg) !important; color: var(--text); font-family: -apple-system, system-ui, sans-serif; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap');
     
-    /* 調整 Streamlit 內建容器的間距，令畫面更緊湊 */
-    .block-container { max-width: 1200px !important; padding-top: 1.5rem !important; }
+    :root { --bg: #f8f9fa; --surface: #ffffff; --text: #1f2937; --primary: #2563eb; }
+    .stApp { background-color: var(--bg) !important; color: var(--text); font-family: 'Inter', sans-serif; }
+    .block-container { max-width: 1100px !important; padding: 2rem 1rem !important; }
+
+    /* 系統說明文字 */
+    .system-desc { font-size: 14px; color: #64748b; font-weight: 500; margin-bottom: 30px; line-height: 1.5; margin-top: 10px; }
+
+    /* 控制面板標籤 */
+    .control-label { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
     
-    /* 橫向 Row 容器樣式 (比照原版 HTML 陰影與圓角) */
-    .html-row-container {
-        background: var(--surface);
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        margin-bottom: 15px;
-        display: flex;
-        align-items: center;
-        width: 100%;
+    /* ==========================================
+       【極致美化】Streamlit Slider (滑動條)
+       ========================================== */
+    div[data-baseweb="slider"] { margin-top: 10px; padding-bottom: 10px; }
+    div[data-baseweb="slider"] > div { background-color: #e2e8f0; }
+    
+    div[data-baseweb="slider"] [role="slider"] {
+        background-color: var(--primary) !important; 
+        border: 2px solid #ffffff !important;
+        box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.15) !important; 
+        width: 22px !important; 
+        height: 22px !important;
+        transition: box-shadow 0.2s ease, transform 0.2s ease !important;
     }
-    
-    /* 左邊 Loft 標題大字 */
-    .loft-head-box {
-        width: 100px;
-        text-align: center;
-        border-right: 2px solid #eee;
-        padding-right: 15px;
-        flex-shrink: 0;
+    div[data-baseweb="slider"] [role="slider"]:hover {
+        box-shadow: 0 0 0 8px rgba(37, 99, 235, 0.25) !important;
+        cursor: grab !important;
     }
-    .loft-title { font-size: 32px; font-weight: 900; line-height: 1; color: #333; margin: 0; }
-    .loft-sub { font-size: 12px; font-weight: 600; color: #888; margin-top: 4px; text-transform: uppercase; }
+    div[data-baseweb="slider"] [role="slider"]:active { cursor: grabbing !important; }
+    div[data-testid="stThumbValue"] { display: none !important; } 
     
-    /* 每張獨立卡片的設計 (完全倒模舊 HTML 的內襯與外觀) */
+    /* 卡片設計 */
+    .loft-head-box { text-align: center; height: 100%; display: flex; flex-direction: column; justify-content: center; padding-top: 10px; }
+    .loft-title { font-size: 36px; font-weight: 800; color: #0f172a; line-height: 1; }
+    .loft-sub { font-size: 12px; font-weight: 600; color: #64748b; margin-top: 5px; }
+
     .custom-card { 
-        background: #f9f9f9; 
-        padding: 12px 10px; 
-        border-radius: 8px; 
-        text-align: center; 
-        border: 1px solid transparent;
-        width: 100%;
+        background: #f8fafc; padding: 15px 10px; border-radius: 12px; text-align: center; 
+        transition: all 0.3s ease; border: 1px solid #f1f5f9; height: 100%; 
+        display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: default; 
     }
-    
-    /* 無數據卡片樣式 */
-    .custom-card.empty {
-        background: transparent;
-        border: 1px dashed #ccc;
-        width: 100%;
+    .custom-card:hover { 
+        transform: translateY(-4px); background-color: #e2e8f0; border-color: #cbd5e1;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); 
     }
-    
-    /* 顏色標籤 Badge */
-    .badge { 
-        padding: 4px 12px; 
-        border-radius: 99px; 
-        font-size: 11px; 
-        font-weight: 800; 
-        color: white; 
-        text-transform: uppercase; 
-        margin-bottom: 8px; 
-        display: inline-block; 
+    .custom-card.empty:hover { background-color: #f1f5f9; }
+
+    .badge { padding: 5px 14px; border-radius: 20px; font-size: 11px; font-weight: 800; color: white; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.5px; }
+    .badge.std { background: #3b82f6; }
+    .badge.q { background: #f97316; }
+    .badge.k { background: #10b981; }
+
+    .oz-val { font-size: 28px; font-weight: 800; color: #0f172a; line-height: 1; }
+    .oz-unit { font-size: 13px; color: #64748b; font-weight: 600; text-transform: uppercase; margin-left: 4px; position: relative; top: -2px;} 
+    .no-data-text { font-size: 13px; color: #94a3b8; font-weight: 500; }
+
+    /* 列印模式隱藏不必要的元素 */
+    @media print {
+        .controls-row, .system-desc { display: none !important; }
+        .block-container { padding: 0 !important; max-width: 100% !important; }
+        .custom-card { border: 1px solid #ccc; box-shadow: none; break-inside: avoid; }
+        iframe { display: none !important; } /* 隱藏 Print 按鈕本身 */
     }
-    .badge.std { background: #0056b3 !important; }
-    .badge.q { background: #d35400 !important; }
-    .badge.k { background: #1e8449 !important; }
-    
-    /* 重量數字與單位 */
-    .oz-val { font-size: 26px; font-weight: 800; color: #111; line-height: 1.1; margin-bottom: 2px; }
-    .oz-unit { font-size: 12px; color: #666; font-weight: 600; text-transform: uppercase; }
-    .no-data-text { font-size: 12px; color: #aaa; padding-top: 5px; font-weight: 600; }
+
+    @media (max-width: 768px) {
+        .block-container { padding-top: 1rem !important; }
+        .loft-head-box { border-bottom: 2px solid #f1f5f9; margin-bottom: 15px; padding-top: 0; }
+        .oz-val { font-size: 24px; }
+        [data-testid="column"] { margin-bottom: 10px; }
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# 頂部標題
-st.markdown("<h1 style='font-size: 24px; font-weight: 800; color: #1f2937; margin-bottom: 25px;'>Pillow Selection</h1>", unsafe_allow_html=True)
+# ==========================================
+# 頂部標題與真實有效的 Print 按鈕
+# ==========================================
+col_title, col_print = st.columns([5, 1])
+with col_title:
+    st.markdown("<h1 style='font-size: 32px; font-weight: 800; color: #0f172a; margin: 0;'>Pillow Selection System</h1>", unsafe_allow_html=True)
 
-# 3. 連接 Google Sheets 及數據清洗
+with col_print:
+    # 穿透 Streamlit 保安機制的真實 Print 按鈕 (window.parent.print)
+    components.html(
+        """
+        <style>
+            body { margin: 0; padding: 0; display: flex; justify-content: flex-end; align-items: center; height: 100%; }
+            .print-btn { 
+                background-color: #ffffff; border: 1px solid #cbd5e1; color: #475569; 
+                padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; 
+                cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 6px;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.05); font-family: -apple-system, sans-serif;
+            }
+            .print-btn:hover { background-color: #f1f5f9; color: #0f172a; border-color: #94a3b8; }
+        </style>
+        <button class="print-btn" onclick="window.parent.print()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+            Print Report
+        </button>
+        """,
+        height=45
+    )
+
+st.markdown("""
+<div class="system-desc">
+    Please set the target compression depth first. As you adjust the target firmness force, the system calculates the required fill weight (oz) and recommends the corresponding pillow options.
+</div>
+""", unsafe_allow_html=True)
+
+# ==========================================
+# 3. 連接 Google Sheets
+# ==========================================
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 @st.cache_data(ttl=60)
@@ -93,177 +138,149 @@ def load_data():
 
 df = load_data()
 df = df.dropna(how="all")
-cols_to_convert = ['Loft', 'Weight_Oz', 'Force_50_g', 'Force_33_g']
-for col in cols_to_convert:
+for col in ['Loft', 'Weight_Oz', 'Force_50_g', 'Force_33_g']:
     df[col] = pd.to_numeric(df[col], errors='coerce')
 df = df.dropna(subset=['Weight_Oz', 'Force_50_g', 'Force_33_g'])
 
 ALL_LOFTS = [600, 700, 750, 800, 850, 950]
-ALL_SIZES = ['Std', 'Q', 'K']
+ALL_SIZES_SHORT = ['Std', 'Q', 'K']
+SIZE_FULL_NAMES = {'Std': 'Standard Size', 'Q': 'Queen Size', 'K': 'King Size'}
 
-# 4. 控制面板 (新版 Streamlit 唯一標準：獨立 Key + 雙向 Callback 同步)
+# ==========================================
+# 4. 控制面板 (加入 st.container 方便列印時隱藏)
+# ==========================================
+controls_container = st.container()
 
-# 用 Streamlit Columns 做外層骨架，比例設定為 2 : 4 : 2
-col1, col2, col3 = st.columns([2, 4, 2], gap="large")
+with controls_container:
+    # 增加 CSS class 給這個容器以在列印時隱藏
+    st.markdown('<div class="controls-row">', unsafe_allow_html=True)
+    c1, c2, c3 = st.columns([1.5, 3, 1.2])
 
-with col1:
-    st.markdown("<span style='font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.5px;'>Target Firmness At</span>", unsafe_allow_html=True)
-    mode = st.radio("", ['50%', '33%'], horizontal=True, label_visibility="collapsed")
+    with c1:
+        st.markdown("<div class='control-label'>Compression Depth</div>", unsafe_allow_html=True)
+        mode = st.radio("Mode", ['50% (Half of Pillow)', '33% (One-Third of Pillow)'], label_visibility="collapsed")
 
-# 根據 50% 或 33% 決定 min, max 同埋 default 數值
-if '50%' in mode:
-    min_f, max_f, default_f = 1000, 3000, 2000
-    force_col = 'Force_50_g'
-else:
-    min_f, max_f, default_f = 2000, 4000, 3000
-    force_col = 'Force_33_g'
+    if '50%' in mode:
+        min_f, max_f, def_f, force_col = 1000, 3000, 2000, 'Force_50_g'
+    else:
+        min_f, max_f, def_f, force_col = 2000, 4000, 3000, 'Force_33_g'
 
-# --- 核心同步大腦初始化 ---
-if "current_force" not in st.session_state:
-    st.session_state.current_force = default_f
+    if "my_slider" not in st.session_state:
+        st.session_state.my_slider = def_f
+    if "my_num" not in st.session_state:
+        st.session_state.my_num = def_f
 
-# 如果切換模式導致數值超界，即時重設
-if st.session_state.current_force < min_f or st.session_state.current_force > max_f:
-    st.session_state.current_force = default_f
+    if st.session_state.my_slider < min_f or st.session_state.my_slider > max_f:
+        st.session_state.my_slider = def_f
+        st.session_state.my_num = def_f
 
-st.session_state.current_force = max(min_f, min(st.session_state.current_force, max_f))
+    def update_from_slider():
+        st.session_state.my_num = st.session_state.my_slider
 
-# 事先將全域數值塞入各自的組件暫存區
-st.session_state.slider_f = st.session_state.current_force
-st.session_state.num_f = st.session_state.current_force
+    def update_from_num():
+        st.session_state.my_slider = st.session_state.my_num
 
-# 定義雙向同步 Callback
-def sync_slider():
-    st.session_state.current_force = st.session_state.slider_f
+    with c2:
+        st.markdown("<div class='control-label' style='text-align: center;'>Target Firmness Force</div>", unsafe_allow_html=True)
+        # 【修正】step=1，現在每一克都可以被選擇
+        st.slider(
+            "Target Force Slider", 
+            min_value=min_f, 
+            max_value=max_f, 
+            key="my_slider", 
+            step=1, 
+            on_change=update_from_slider, 
+            label_visibility="collapsed"
+        )
 
-def sync_num():
-    st.session_state.current_force = st.session_state.num_f
-# --- 同步大腦結束 ---
+    with c3:
+        st.markdown("<div class='control-label' style='text-align: right;'>Exact Force (g)</div>", unsafe_allow_html=True)
+        # 【修正】step=1，現在打任何數字都會完全同步
+        st.number_input(
+            "Exact Grams Input", 
+            min_value=min_f, 
+            max_value=max_f, 
+            key="my_num", 
+            step=1, 
+            on_change=update_from_num, 
+            label_visibility="collapsed"
+        )
+    st.markdown('</div>', unsafe_allow_html=True)
 
+target_force = st.session_state.my_slider
 
-with col2:
-    st.markdown("<div style='text-align: center;'><span style='font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.5px;'>Target Firmness</span></div>", unsafe_allow_html=True)
-    # 使用獨立 Key "slider_f"，並綁定 on_change 函數
-    st.slider(
-        "", 
-        min_value=min_f, 
-        max_value=max_f, 
-        key="slider_f", 
-        step=50,
-        on_change=sync_slider,
-        label_visibility="collapsed"
-    )
+st.markdown("<hr style='border:none; border-top:1px solid #e2e8f0; margin: 15px 0 25px 0;'>", unsafe_allow_html=True)
 
-with col3:
-    st.markdown("<div style='text-align: right;'><span style='font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.5px;'>Current Force</span></div>", unsafe_allow_html=True)
-    # 使用獨立 Key "num_f"，並綁定 on_change 函數
-    st.number_input(
-        "", 
-        min_value=min_f, 
-        max_value=max_f, 
-        key="num_f", 
-        step=50,
-        on_change=sync_num,
-        label_visibility="collapsed"
-    )
-    st.markdown("<div style='font-size: 11px; color: #888; font-weight: 600; margin-top: 2px; text-align: right; text-transform: uppercase; letter-spacing: 0.5px;'>FORCE UNIT</div>", unsafe_allow_html=True)
-
-# 最終將徹底同步的數值交給下方的圖表與運算系統
-target_force = st.session_state.current_force
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-# 5. 核心運算與圖表
+# ==========================================
+# 5. 圖表
+# ==========================================
 fig = go.Figure()
 grid_data = {}
 
 for loft in ALL_LOFTS:
     grid_data[loft] = {}
-    for size in ALL_SIZES:
-        subset = df[(df['Loft'] == loft) & (df['Size'] == size)].sort_values(by='Weight_Oz')
-        
+    for short_size in ALL_SIZES_SHORT:
+        subset = df[(df['Loft'] == loft) & (df['Size'] == short_size)].sort_values(by='Weight_Oz')
         if len(subset) >= 2:
-            x_forces = subset[force_col].astype(float).values
-            y_weights = subset['Weight_Oz'].astype(float).values
-            
-            m, c = np.polyfit(x_forces, y_weights, 1) 
-            predicted_weight = m * target_force + c
-            
-            if predicted_weight > 0:
-                grid_data[loft][size] = predicted_weight
-                
-                color_map = {'Std': '#0056b3', 'Q': '#d35400', 'K': '#1e8449'}
-                line_color = color_map.get(size, '#333')
-                
-                trend_x = np.array([min_f, max_f])
-                trend_y = m * trend_x + c
-                
-                fig.add_trace(go.Scatter(
-                    x=trend_x, y=trend_y, mode='lines',
-                    name=f"{loft} {size}",
-                    line=dict(width=3, color=line_color),
-                ))
-            else:
-                 grid_data[loft][size] = "Out of Range"
-        else:
-            grid_data[loft][size] = "No Data"
+            m, c = np.polyfit(subset[force_col], subset['Weight_Oz'], 1)
+            pred = m * target_force + c
+            if pred > 0:
+                grid_data[loft][short_size] = pred
+                color = {'Std': '#3b82f6', 'Q': '#f97316', 'K': '#10b981'}[short_size]
+                fig.add_trace(go.Scatter(x=[min_f, max_f], y=[m*min_f+c, m*max_f+c], mode='lines', name=f"{loft} {short_size}", line=dict(width=2, color=color)))
+            else: grid_data[loft][short_size] = "Range Error"
+        else: grid_data[loft][short_size] = "No Data"
 
 fig.update_layout(
-    xaxis_title="Force (grams)",
-    yaxis_title="Weight (oz)",
-    height=400,
-    plot_bgcolor='white',
-    paper_bgcolor='rgba(0,0,0,0)',
-    xaxis=dict(showgrid=True, gridcolor='#eee', zeroline=False, range=[min_f, max_f]),
-    yaxis=dict(showgrid=True, gridcolor='#eee'),
-    margin=dict(t=20, b=40, l=40, r=20),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    height=400, margin=dict(t=10, b=40, l=40, r=10),
+    plot_bgcolor='white', paper_bgcolor='rgba(0,0,0,0)',
+    xaxis=dict(showgrid=True, gridcolor='#f1f5f9', zeroline=False),
+    yaxis=dict(showgrid=True, gridcolor='#f1f5f9'),
+    legend=dict(orientation="h", y=1.1, x=0.5, xanchor="center")
 )
-fig.add_vline(x=target_force, line_dash="dash", line_color="red", line_width=1.5)
+fig.add_vline(x=target_force, line_dash="dash", line_color="#ef4444")
 
-# 圖表外層白色容器
-st.markdown("<div style='background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 30px;'>", unsafe_allow_html=True)
-st.plotly_chart(fig, width='stretch')
-st.markdown("</div>", unsafe_allow_html=True)
+st.plotly_chart(fig, width='stretch', config={'displayModeBar': False})
 
+# ==========================================
+# 6. Grid 顯示區 
+# ==========================================
+st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
 
-# 6. Grid 顯示區 (Streamlit 骨架 + 原生 HTML 卡片完美的混合體！)
-# 採用 [1, 3, 3, 3] 比例：Loft佔1格，Std, Q, K 各霸佔相等的三格，保證完美對齊並100%填滿！
 for loft in ALL_LOFTS:
-    row_cols = st.columns([1, 3, 3, 3], gap="medium")
-    
-    # 第一欄：放入左邊的 Loft 標題大字
-    with row_cols[0]:
-        st.markdown(f"""
-        <div class="loft-head-box" style="border-right: none; width: 100%;">
-            <div class="loft-title">{loft}</div>
-            <div class="loft-sub">LOFT</div>
-        </div>
-        """, unsafe_allow_html=True)
+    with st.container():
+        row_cols = st.columns([1, 3, 3, 3])
         
-    # 第二、三、四欄：平分剩餘空間，各自放入對應的卡片
-    for idx, size in enumerate(ALL_SIZES):
-        result = grid_data[loft][size]
-        badge_class = size.lower()
+        with row_cols[0]:
+            st.markdown(f"""
+                <div class="loft-head-box">
+                    <div class="loft-title">{loft}</div>
+                    <div class="loft-sub">LOFT SERIES</div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+        for idx, short_size in enumerate(ALL_SIZES_SHORT):
+            result = grid_data[loft][short_size]
+            badge_color_class = short_size.lower() 
+            full_size_name = SIZE_FULL_NAMES[short_size] 
+            
+            with row_cols[idx + 1]:
+                if isinstance(result, (int, float)):
+                    st.markdown(f"""
+                        <div class="custom-card">
+                            <span class="badge {badge_color_class}">{full_size_name}</span>
+                            <div style="display: flex; align-items: baseline; justify-content: center;">
+                                <span class="oz-val" style="margin: 0; padding: 0; line-height: 1;">{result:.1f}</span>
+                                <span class="oz-unit" style="margin: 0; padding: 0; line-height: 1;">oz</span>
+                            </div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                        <div class="custom-card empty" style="border-style: dashed; background: transparent;">
+                            <span class="badge {badge_color_class}" style="opacity: 0.5;">{full_size_name}</span>
+                            <div class="no-data-text" style="margin: 0; padding: 0;">{result}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
         
-        with row_cols[idx + 1]:
-            if type(result) != str:
-                # 倒模原版 HTML卡片
-                st.markdown(f"""
-                <div class="custom-card">
-                    <span class="badge {badge_class}">{size}</span>
-                    <div class="oz-val">{result:.1f}</div>
-                    <div class="oz-unit">oz</div>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                # 倒模原版 虛線卡片
-                st.markdown(f"""
-                <div class="custom-card empty">
-                    <span class="badge {badge_class}">{size}</span>
-                    <div class="no-data-text">{result}</div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-    # 每一行結束後，加一條淡淡的底線（可自由選擇留不留，用來做視覺區隔）
-    st.markdown("<hr style='border:none; border-top:1px solid #eee; margin:10px 0 15px 0;'>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-bottom: 25px; border-bottom: 1px solid #f1f5f9;'></div>", unsafe_allow_html=True)
