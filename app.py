@@ -19,7 +19,7 @@ st.markdown("""
     
     :root { --bg: #f8f9fa; --surface: #ffffff; --text: #1f2937; --primary: #2563eb; }
     .stApp { background-color: var(--bg) !important; color: var(--text); font-family: 'Inter', sans-serif; }
-    .block-container { max-width: 1100px !important; padding: 2rem 1rem !important; }
+    .block-container { max-width: 1200px !important; padding: 2rem 1rem !important; }
 
     /* 系統說明文字 */
     .system-desc { font-size: 14px; color: #64748b; font-weight: 500; margin-bottom: 25px; line-height: 1.5; margin-top: 10px; }
@@ -154,15 +154,15 @@ ALL_SIZES_SHORT = ['Std', 'Q', 'K']
 SIZE_FULL_NAMES = {'Std': 'Standard Size', 'Q': 'Queen Size', 'K': 'King Size'}
 
 # ==========================================
-# 4. 控制面板 (頂部：只保留 Depth 同 Force)
+# 4. 緊湊型控制面板 (所有控制器放埋一齊，保持下方乾淨)
 # ==========================================
 controls_container = st.container()
 
 with controls_container:
     st.markdown('<div class="controls-row">', unsafe_allow_html=True)
     
-    c_mode, c_f_slide, c_f_num = st.columns([2, 3, 1])
-    
+    # 第一排：Mode 同 力度控制
+    c_mode, c_f_slide, c_f_num = st.columns([1.5, 2.5, 1])
     with c_mode:
         st.markdown("<div class='control-label'>1. Compression Depth</div>", unsafe_allow_html=True)
         mode = st.radio("Mode", ['50% (Half of Pillow)', '33% (One-Third of Pillow)'], label_visibility="collapsed")
@@ -174,7 +174,6 @@ with controls_container:
         min_f, max_f, def_f, force_col = 2000, 4000, 3000, 'Force_33_g'
         z_soft, z_med, z_firm = [2000, 2500], [2500, 3500], [3500, 4000]
 
-    # --- 力度大腦初始化 ---
     if "my_slider" not in st.session_state: st.session_state.my_slider = def_f
     if "my_num" not in st.session_state: st.session_state.my_num = def_f
     if st.session_state.my_slider < min_f or st.session_state.my_slider > max_f:
@@ -191,34 +190,46 @@ with controls_container:
         st.markdown("<div class='control-label' style='text-align:right;'>Force (g)</div>", unsafe_allow_html=True)
         st.number_input("Force Input", min_f, max_f, key="my_num", step=1, on_change=update_from_num, label_visibility="collapsed")
 
+    # 第二排：重量控制 (隱藏起來的感覺)
+    max_weight_in_sheet = float(df['Weight_Oz'].max()) if len(df) > 0 else 40.0
+    min_weight_in_sheet = float(df['Weight_Oz'].min()) if len(df) > 0 else 5.0
+    safe_default_weight = max(min_weight_in_sheet, min(15.0, max_weight_in_sheet))
+    
+    if "weight_slider" not in st.session_state: st.session_state.weight_slider = safe_default_weight
+    if "weight_num" not in st.session_state: st.session_state.weight_num = safe_default_weight
+    
+    st.session_state.weight_slider = max(min_weight_in_sheet, min(st.session_state.weight_slider, max_weight_in_sheet))
+    st.session_state.weight_num = max(min_weight_in_sheet, min(st.session_state.weight_num, max_weight_in_sheet))
+
+    def update_w_slider(): st.session_state.weight_num = st.session_state.weight_slider
+    def update_w_num(): st.session_state.weight_slider = st.session_state.weight_num
+
+    st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+    
+    c_w_empty, c_w_slide, c_w_num = st.columns([1.5, 2.5, 1])
+    with c_w_empty:
+        pass # 留白，對齊上面的排版
+    with c_w_slide:
+        st.markdown("<div class='control-label'>3. Target Reference Weight (Y-Axis Line)</div>", unsafe_allow_html=True)
+        st.slider("Weight Slider", min_value=min_weight_in_sheet, max_value=max_weight_in_sheet, key="weight_slider", step=0.1, on_change=update_w_slider, label_visibility="collapsed")
+    with c_w_num:
+        st.markdown("<div class='control-label' style='text-align:right;'>Weight (oz)</div>", unsafe_allow_html=True)
+        st.number_input("Weight Input", min_value=min_weight_in_sheet, max_value=max_weight_in_sheet, key="weight_num", step=0.1, on_change=update_w_num, label_visibility="collapsed")
+
     st.markdown('</div>', unsafe_allow_html=True)
 
 target_force = st.session_state.my_slider
+target_weight = st.session_state.weight_slider  
 
 # 判定卡片Zone
 if target_force <= z_soft[1]: current_zone_class = "zone-soft"
 elif target_force <= z_med[1]: current_zone_class = "zone-med"
 else: current_zone_class = "zone-firm"
 
-# ==========================================
-# 準備重量資料 (為了下面圖表和 Slider)
-# ==========================================
-max_weight_in_sheet = float(df['Weight_Oz'].max()) if len(df) > 0 else 40.0
-min_weight_in_sheet = float(df['Weight_Oz'].min()) if len(df) > 0 else 5.0
-safe_default_weight = max(min_weight_in_sheet, min(15.0, max_weight_in_sheet))
-
-if "weight_slider" not in st.session_state: st.session_state.weight_slider = safe_default_weight
-if "weight_num" not in st.session_state: st.session_state.weight_num = safe_default_weight
-
-st.session_state.weight_slider = max(min_weight_in_sheet, min(st.session_state.weight_slider, max_weight_in_sheet))
-st.session_state.weight_num = max(min_weight_in_sheet, min(st.session_state.weight_num, max_weight_in_sheet))
-
-target_weight = st.session_state.weight_slider  
-
 st.markdown("<hr style='border:none; border-top:1px solid #e2e8f0; margin: 15px 0 25px 0;'>", unsafe_allow_html=True)
 
 # ==========================================
-# 5. 圖表 
+# 5. 圖表 (已加高至 700px)
 # ==========================================
 fig = go.Figure()
 
@@ -247,11 +258,12 @@ for loft in ALL_LOFTS:
         else: grid_data[loft][short_size] = "No Data"
 
 fig.update_layout(
-    height=400, margin=dict(t=10, b=40, l=40, r=10),
+    height=700,  # 【修改】圖表高度由 400 大幅加高到 700，方便睇將來大量嘅線
+    margin=dict(t=10, b=40, l=40, r=10),
     plot_bgcolor='white', paper_bgcolor='rgba(0,0,0,0)',
     xaxis=dict(showgrid=True, gridcolor='#f1f5f9', zeroline=False),
     yaxis=dict(showgrid=True, gridcolor='#f1f5f9'),
-    legend=dict(orientation="h", y=1.1, x=0.5, xanchor="center")
+    legend=dict(orientation="h", y=1.05, x=0.5, xanchor="center")
 )
 
 # 1. 直向力度紅線
@@ -271,23 +283,6 @@ fig.add_hline(
 
 st.plotly_chart(fig, width='stretch', config={'displayModeBar': False})
 
-# ==========================================
-# 5.5. 圖表下方的重量 Slider (Y-Axis 控制)
-# ==========================================
-def update_w_slider(): st.session_state.weight_num = st.session_state.weight_slider
-def update_w_num(): st.session_state.weight_slider = st.session_state.weight_num
-
-st.markdown('<div class="controls-row">', unsafe_allow_html=True)
-cw1, cw2, cw3 = st.columns([1, 4, 1])
-with cw1:
-    st.markdown("<div style='height:30px;'></div>", unsafe_allow_html=True) # 調整高度讓它對齊
-with cw2:
-    st.markdown("<div class='control-label' style='text-align: center;'>3. Target Reference Weight (Y-Axis Line)</div>", unsafe_allow_html=True)
-    st.slider("Weight Slider", min_value=min_weight_in_sheet, max_value=max_weight_in_sheet, key="weight_slider", step=0.1, on_change=update_w_slider, label_visibility="collapsed")
-with cw3:
-    st.markdown("<div class='control-label' style='text-align: right;'>Weight (oz)</div>", unsafe_allow_html=True)
-    st.number_input("Weight Input", min_value=min_weight_in_sheet, max_value=max_weight_in_sheet, key="weight_num", step=0.1, on_change=update_w_num, label_visibility="collapsed")
-st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
 # 6. Grid 顯示區 
