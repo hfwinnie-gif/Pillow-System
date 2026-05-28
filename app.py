@@ -128,7 +128,7 @@ with col_print:
 
 st.markdown("""
 <div class="system-desc">
-    Please set the target compression depth first. Use the controllers below to adjust the target firmness force (vertical line) and target reference weight (horizontal line) to analyze pillow specifications.
+    Please set the target compression depth first. Adjust the target firmness force below. <b>You can also drag the horizontal dashed line directly on the chart</b> to use it as a weight reference.
 </div>
 """, unsafe_allow_html=True)
 
@@ -154,15 +154,15 @@ ALL_SIZES_SHORT = ['Std', 'Q', 'K']
 SIZE_FULL_NAMES = {'Std': 'Standard Size', 'Q': 'Queen Size', 'K': 'King Size'}
 
 # ==========================================
-# 4. 緊湊型控制面板 (所有控制器放埋一齊，保持下方乾淨)
+# 4. 極簡控制面板 (只有 Depth 同 Force，絕無多餘 Slider)
 # ==========================================
 controls_container = st.container()
 
 with controls_container:
     st.markdown('<div class="controls-row">', unsafe_allow_html=True)
     
-    # 第一排：Mode 同 力度控制
     c_mode, c_f_slide, c_f_num = st.columns([1.5, 2.5, 1])
+    
     with c_mode:
         st.markdown("<div class='control-label'>1. Compression Depth</div>", unsafe_allow_html=True)
         mode = st.radio("Mode", ['50% (Half of Pillow)', '33% (One-Third of Pillow)'], label_visibility="collapsed")
@@ -190,36 +190,9 @@ with controls_container:
         st.markdown("<div class='control-label' style='text-align:right;'>Force (g)</div>", unsafe_allow_html=True)
         st.number_input("Force Input", min_f, max_f, key="my_num", step=1, on_change=update_from_num, label_visibility="collapsed")
 
-    # 第二排：重量控制 (隱藏起來的感覺)
-    max_weight_in_sheet = float(df['Weight_Oz'].max()) if len(df) > 0 else 40.0
-    min_weight_in_sheet = float(df['Weight_Oz'].min()) if len(df) > 0 else 5.0
-    safe_default_weight = max(min_weight_in_sheet, min(15.0, max_weight_in_sheet))
-    
-    if "weight_slider" not in st.session_state: st.session_state.weight_slider = safe_default_weight
-    if "weight_num" not in st.session_state: st.session_state.weight_num = safe_default_weight
-    
-    st.session_state.weight_slider = max(min_weight_in_sheet, min(st.session_state.weight_slider, max_weight_in_sheet))
-    st.session_state.weight_num = max(min_weight_in_sheet, min(st.session_state.weight_num, max_weight_in_sheet))
-
-    def update_w_slider(): st.session_state.weight_num = st.session_state.weight_slider
-    def update_w_num(): st.session_state.weight_slider = st.session_state.weight_num
-
-    st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
-    
-    c_w_empty, c_w_slide, c_w_num = st.columns([1.5, 2.5, 1])
-    with c_w_empty:
-        pass # 留白，對齊上面的排版
-    with c_w_slide:
-        st.markdown("<div class='control-label'>3. Target Reference Weight (Y-Axis Line)</div>", unsafe_allow_html=True)
-        st.slider("Weight Slider", min_value=min_weight_in_sheet, max_value=max_weight_in_sheet, key="weight_slider", step=0.1, on_change=update_w_slider, label_visibility="collapsed")
-    with c_w_num:
-        st.markdown("<div class='control-label' style='text-align:right;'>Weight (oz)</div>", unsafe_allow_html=True)
-        st.number_input("Weight Input", min_value=min_weight_in_sheet, max_value=max_weight_in_sheet, key="weight_num", step=0.1, on_change=update_w_num, label_visibility="collapsed")
-
     st.markdown('</div>', unsafe_allow_html=True)
 
 target_force = st.session_state.my_slider
-target_weight = st.session_state.weight_slider  
 
 # 判定卡片Zone
 if target_force <= z_soft[1]: current_zone_class = "zone-soft"
@@ -229,17 +202,17 @@ else: current_zone_class = "zone-firm"
 st.markdown("<hr style='border:none; border-top:1px solid #e2e8f0; margin: 15px 0 25px 0;'>", unsafe_allow_html=True)
 
 # ==========================================
-# 5. 圖表 (已加高至 700px)
+# 5. 超巨型圖表 (內置可拖動橫線)
 # ==========================================
 fig = go.Figure()
 
-# 繪製背景顏色區塊
+# 繪製背景顏色區塊 (加入 editable=False 防止被誤拉)
 fig.add_vrect(x0=z_soft[0], x1=z_soft[1], fillcolor="#e0f2fe", opacity=0.6, layer="below", line_width=0, 
-              annotation_text="<b>SOFT</b>", annotation_position="top left", annotation_font_color="#0369a1", annotation_font_size=13)
+              annotation_text="<b>SOFT</b>", annotation_position="top left", annotation_font_color="#0369a1", annotation_font_size=13, editable=False)
 fig.add_vrect(x0=z_med[0], x1=z_med[1], fillcolor="#fef08a", opacity=0.4, layer="below", line_width=0, 
-              annotation_text="<b>MEDIUM</b>", annotation_position="top left", annotation_font_color="#a16207", annotation_font_size=13)
+              annotation_text="<b>MEDIUM</b>", annotation_position="top left", annotation_font_color="#a16207", annotation_font_size=13, editable=False)
 fig.add_vrect(x0=z_firm[0], x1=z_firm[1], fillcolor="#fee2e2", opacity=0.6, layer="below", line_width=0, 
-              annotation_text="<b>FIRM</b>", annotation_position="top left", annotation_font_color="#b91c1c", annotation_font_size=13)
+              annotation_text="<b>FIRM</b>", annotation_position="top left", annotation_font_color="#b91c1c", annotation_font_size=13, editable=False)
 
 grid_data = {}
 
@@ -258,7 +231,7 @@ for loft in ALL_LOFTS:
         else: grid_data[loft][short_size] = "No Data"
 
 fig.update_layout(
-    height=700,  # 【修改】圖表高度由 400 大幅加高到 700，方便睇將來大量嘅線
+    height=700, # 圖表巨型化！
     margin=dict(t=10, b=40, l=40, r=10),
     plot_bgcolor='white', paper_bgcolor='rgba(0,0,0,0)',
     xaxis=dict(showgrid=True, gridcolor='#f1f5f9', zeroline=False),
@@ -266,22 +239,37 @@ fig.update_layout(
     legend=dict(orientation="h", y=1.05, x=0.5, xanchor="center")
 )
 
-# 1. 直向力度紅線
-fig.add_vline(x=target_force, line_dash="solid", line_color="#ef4444", line_width=2.5)
+# 1. 直向力度紅線 (加入 editable=False 防止被誤拉)
+fig.add_vline(x=target_force, line_dash="solid", line_color="#ef4444", line_width=2.5, editable=False)
 
-# 2. 橫向重量虛線 
-fig.add_hline(
-    y=target_weight, 
-    line_dash="dash", 
-    line_color="#4b5563",  
-    line_width=2,
-    annotation_text=f"Target: {target_weight:.1f} oz", 
-    annotation_position="bottom right",
-    annotation_font_color="#1f2937",
-    annotation_font_size=11
+# 2. 【魔法新功能】橫向重量虛線 (可以直接喺圖入面用 Mouse 拉上拉落！)
+fig.add_shape(
+    type="line", 
+    xref="paper", x0=0, x1=1, 
+    yref="y", y0=15, y1=15, 
+    line=dict(color="#4b5563", width=2, dash="dash"),
+    editable=True # 唯一允許被拖曳嘅圖形
 )
 
-st.plotly_chart(fig, width='stretch', config={'displayModeBar': False})
+# Plotly 互動設定：開啟圖形拖拉功能，但封鎖更改標題等操作
+plot_config = {
+    'displayModeBar': False,
+    'editable': True,
+    'edits': {
+        'titleText': False,
+        'axisTitleText': False,
+        'annotationPosition': False,
+        'annotationTail': False,
+        'annotationText': False,
+        'colorbarPosition': False,
+        'colorbarTitleText': False,
+        'legendPosition': False,
+        'legendText': False,
+        'shapePosition': True,
+    }
+}
+
+st.plotly_chart(fig, width='stretch', config=plot_config)
 
 
 # ==========================================
