@@ -22,7 +22,7 @@ st.markdown("""
     .block-container { max-width: 1200px !important; padding: 2rem 1rem !important; }
 
     /* 系統說明文字 */
-    .system-desc { font-size: 14px; color: #64748b; font-weight: 500; margin-bottom: 25px; line-height: 1.5; margin-top: 10px; }
+    .system-desc { font-size: 14px; color: #64748b; font-weight: 500; margin-bottom: 20px; line-height: 1.5; margin-top: 10px; }
 
     /* 控制面板標籤 */
     .control-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 5px; }
@@ -48,7 +48,7 @@ st.markdown("""
     /* 卡片設計 */
     .loft-head-box { text-align: center; height: 100%; display: flex; flex-direction: column; justify-content: center; padding-top: 10px; }
     .loft-title { font-size: 36px; font-weight: 800; color: #0f172a; line-height: 1; }
-    .loft-sub { font-size: 12px; font-weight: 600; color: #64748b; margin-top: 5px; }
+    .loft-sub { font-size: 12px; font-weight: 600; color: #888; margin-top: 5px; }
 
     .custom-card { 
         background: #f8fafc; padding: 15px 10px; border-radius: 12px; text-align: center; 
@@ -128,7 +128,7 @@ with col_print:
 
 st.markdown("""
 <div class="system-desc">
-    Please set the target compression depth first. Adjust the target firmness force below. <b>You can also drag the horizontal dashed line directly on the chart</b> to use it as a weight reference.
+    Please set the target compression depth first. Adjust the target firmness force below. Use the "Target (oz)" input box to move the horizontal reference line.
 </div>
 """, unsafe_allow_html=True)
 
@@ -154,18 +154,19 @@ ALL_SIZES_SHORT = ['Std', 'Q', 'K']
 SIZE_FULL_NAMES = {'Std': 'Standard Size', 'Q': 'Queen Size', 'K': 'King Size'}
 
 # ==========================================
-# 4. 極簡控制面板 (只有 Depth 同 Force，絕無多餘 Slider)
+# 4. 極限單行控制面板 (所有控制器平排，極度乾淨！)
 # ==========================================
 controls_container = st.container()
 
 with controls_container:
     st.markdown('<div class="controls-row">', unsafe_allow_html=True)
     
-    c_mode, c_f_slide, c_f_num = st.columns([1.5, 2.5, 1])
+    # 完美分配寬度：Mode(2), Force Slider(3), Force Input(1), Weight Input(1)
+    c_mode, c_f_slide, c_f_num, c_w_num = st.columns([1.5, 2.5, 1, 1])
     
     with c_mode:
         st.markdown("<div class='control-label'>1. Compression Depth</div>", unsafe_allow_html=True)
-        mode = st.radio("Mode", ['50% (Half of Pillow)', '33% (One-Third of Pillow)'], label_visibility="collapsed")
+        mode = st.radio("Mode", ['50% (Half)', '33% (One-Third)'], label_visibility="collapsed", horizontal=True)
 
     if '50%' in mode:
         min_f, max_f, def_f, force_col = 1000, 3000, 2000, 'Force_50_g'
@@ -174,6 +175,7 @@ with controls_container:
         min_f, max_f, def_f, force_col = 2000, 4000, 3000, 'Force_33_g'
         z_soft, z_med, z_firm = [2000, 2500], [2500, 3500], [3500, 4000]
 
+    # 力度變數
     if "my_slider" not in st.session_state: st.session_state.my_slider = def_f
     if "my_num" not in st.session_state: st.session_state.my_num = def_f
     if st.session_state.my_slider < min_f or st.session_state.my_slider > max_f:
@@ -184,15 +186,28 @@ with controls_container:
     def update_from_num(): st.session_state.my_slider = st.session_state.my_num
 
     with c_f_slide:
-        st.markdown("<div class='control-label'>2. Target Firmness Force (X-Axis)</div>", unsafe_allow_html=True)
+        st.markdown("<div class='control-label'>2. Force Slider (X-Axis)</div>", unsafe_allow_html=True)
         st.slider("Force Slider", min_f, max_f, key="my_slider", step=1, on_change=update_from_slider, label_visibility="collapsed")
     with c_f_num:
-        st.markdown("<div class='control-label' style='text-align:right;'>Force (g)</div>", unsafe_allow_html=True)
+        st.markdown("<div class='control-label'>Force (g)</div>", unsafe_allow_html=True)
         st.number_input("Force Input", min_f, max_f, key="my_num", step=1, on_change=update_from_num, label_visibility="collapsed")
+
+    # 重量變數 (只保留 Number Input)
+    max_weight = float(df['Weight_Oz'].max()) if len(df) > 0 else 40.0
+    min_weight = float(df['Weight_Oz'].min()) if len(df) > 0 else 5.0
+    safe_weight = max(min_weight, min(15.0, max_weight))
+    
+    if "target_weight" not in st.session_state: st.session_state.target_weight = safe_weight
+    st.session_state.target_weight = max(min_weight, min(st.session_state.target_weight, max_weight))
+
+    with c_w_num:
+        st.markdown("<div class='control-label' style='color:#0369a1;'>Target (oz) ↕</div>", unsafe_allow_html=True)
+        st.number_input("Weight Input", min_value=min_weight, max_value=max_weight, key="target_weight", step=0.5, label_visibility="collapsed")
 
     st.markdown('</div>', unsafe_allow_html=True)
 
 target_force = st.session_state.my_slider
+current_target_weight = st.session_state.target_weight  
 
 # 判定卡片Zone
 if target_force <= z_soft[1]: current_zone_class = "zone-soft"
@@ -202,17 +217,17 @@ else: current_zone_class = "zone-firm"
 st.markdown("<hr style='border:none; border-top:1px solid #e2e8f0; margin: 15px 0 25px 0;'>", unsafe_allow_html=True)
 
 # ==========================================
-# 5. 超巨型圖表 (內置可拖動橫線)
+# 5. 超巨型圖表 (加入穩定安全嘅橫線)
 # ==========================================
 fig = go.Figure()
 
-# 繪製背景顏色區塊 (加入 editable=False 防止被誤拉)
+# 繪製背景顏色區塊
 fig.add_vrect(x0=z_soft[0], x1=z_soft[1], fillcolor="#e0f2fe", opacity=0.6, layer="below", line_width=0, 
-              annotation_text="<b>SOFT</b>", annotation_position="top left", annotation_font_color="#0369a1", annotation_font_size=13, editable=False)
+              annotation_text="<b>SOFT</b>", annotation_position="top left", annotation_font_color="#0369a1", annotation_font_size=13)
 fig.add_vrect(x0=z_med[0], x1=z_med[1], fillcolor="#fef08a", opacity=0.4, layer="below", line_width=0, 
-              annotation_text="<b>MEDIUM</b>", annotation_position="top left", annotation_font_color="#a16207", annotation_font_size=13, editable=False)
+              annotation_text="<b>MEDIUM</b>", annotation_position="top left", annotation_font_color="#a16207", annotation_font_size=13)
 fig.add_vrect(x0=z_firm[0], x1=z_firm[1], fillcolor="#fee2e2", opacity=0.6, layer="below", line_width=0, 
-              annotation_text="<b>FIRM</b>", annotation_position="top left", annotation_font_color="#b91c1c", annotation_font_size=13, editable=False)
+              annotation_text="<b>FIRM</b>", annotation_position="top left", annotation_font_color="#b91c1c", annotation_font_size=13)
 
 grid_data = {}
 
@@ -231,7 +246,7 @@ for loft in ALL_LOFTS:
         else: grid_data[loft][short_size] = "No Data"
 
 fig.update_layout(
-    height=700, # 圖表巨型化！
+    height=700, 
     margin=dict(t=10, b=40, l=40, r=10),
     plot_bgcolor='white', paper_bgcolor='rgba(0,0,0,0)',
     xaxis=dict(showgrid=True, gridcolor='#f1f5f9', zeroline=False),
@@ -239,38 +254,22 @@ fig.update_layout(
     legend=dict(orientation="h", y=1.05, x=0.5, xanchor="center")
 )
 
-# 1. 直向力度紅線 (加入 editable=False 防止被誤拉)
-fig.add_vline(x=target_force, line_dash="solid", line_color="#ef4444", line_width=2.5, editable=False)
+# 1. 直向力度紅線 
+fig.add_vline(x=target_force, line_dash="solid", line_color="#ef4444", line_width=2.5)
 
-# 2. 【魔法新功能】橫向重量虛線 (可以直接喺圖入面用 Mouse 拉上拉落！)
-fig.add_shape(
-    type="line", 
-    xref="paper", x0=0, x1=1, 
-    yref="y", y0=15, y1=15, 
-    line=dict(color="#4b5563", width=2, dash="dash"),
-    editable=True # 唯一允許被拖曳嘅圖形
+# 2. 安全穩定嘅橫向重量虛線
+fig.add_hline(
+    y=current_target_weight, 
+    line_dash="dash", 
+    line_color="#0369a1",  
+    line_width=2,
+    annotation_text=f"Target: {current_target_weight:.1f} oz", 
+    annotation_position="bottom right",
+    annotation_font_color="#0369a1",
+    annotation_font_size=12
 )
 
-# Plotly 互動設定：開啟圖形拖拉功能，但封鎖更改標題等操作
-plot_config = {
-    'displayModeBar': False,
-    'editable': True,
-    'edits': {
-        'titleText': False,
-        'axisTitleText': False,
-        'annotationPosition': False,
-        'annotationTail': False,
-        'annotationText': False,
-        'colorbarPosition': False,
-        'colorbarTitleText': False,
-        'legendPosition': False,
-        'legendText': False,
-        'shapePosition': True,
-    }
-}
-
-st.plotly_chart(fig, width='stretch', config=plot_config)
-
+st.plotly_chart(fig, width='stretch', config={'displayModeBar': False})
 
 # ==========================================
 # 6. Grid 顯示區 
