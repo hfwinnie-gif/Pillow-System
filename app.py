@@ -192,12 +192,11 @@ with controls_container:
         st.markdown("<div class='control-label'>Force (g)</div>", unsafe_allow_html=True)
         st.number_input("Force Input", min_f, max_f, key="my_num", step=1, on_change=update_from_num, label_visibility="collapsed")
 
-    # 重量變數 (只保留 Number Input)
-    max_weight = float(df['Weight_Oz'].max()) if len(df) > 0 else 40.0
-    min_weight = float(df['Weight_Oz'].min()) if len(df) > 0 else 5.0
-    safe_weight = max(min_weight, min(15.0, max_weight))
+    # 重量變數 (【修改】限死 10-30 oz)
+    min_weight = 10.0
+    max_weight = 30.0
     
-    if "target_weight" not in st.session_state: st.session_state.target_weight = safe_weight
+    if "target_weight" not in st.session_state: st.session_state.target_weight = 15.0
     st.session_state.target_weight = max(min_weight, min(st.session_state.target_weight, max_weight))
 
     with c_w_num:
