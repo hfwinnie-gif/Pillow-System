@@ -154,14 +154,13 @@ ALL_SIZES_SHORT = ['Std', 'Q', 'K']
 SIZE_FULL_NAMES = {'Std': 'Standard Size', 'Q': 'Queen Size', 'K': 'King Size'}
 
 # ==========================================
-# 4. 控制面板 (升級為雙軸雙向控制器)
+# 4. 控制面板 
 # ==========================================
 controls_container = st.container()
 
 with controls_container:
     st.markdown('<div class="controls-row">', unsafe_allow_html=True)
     
-    # 拆分為上下或左右並排，這裡用兩橫排處理，第一排處理 Depth，第二排處理 Force 同埋 Weight 嘅 Slider
     c_mode, c_spacer = st.columns([2, 4])
     with c_mode:
         st.markdown("<div class='control-label'>1. Compression Depth</div>", unsafe_allow_html=True)
@@ -176,7 +175,6 @@ with controls_container:
 
     st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
     
-    # 力度與重量的雙向控制排版
     col_f_slide, col_f_num, col_w_slide, col_w_num = st.columns([2.5, 1, 2.5, 1])
 
     # --- 力度大腦初始化 ---
@@ -196,12 +194,19 @@ with controls_container:
         st.markdown("<div class='control-label' style='text-align:right;'>Force (g)</div>", unsafe_allow_html=True)
         st.number_input("Force Input", min_f, max_f, key="my_num", step=1, on_change=update_from_num, label_visibility="collapsed")
 
-    # --- 重量大腦初始化 (【新功能】橫線控制器) ---
+    # --- 【修復】重量大腦初始化 安全鎖 ---
     max_weight_in_sheet = float(df['Weight_Oz'].max()) if len(df) > 0 else 40.0
     min_weight_in_sheet = float(df['Weight_Oz'].min()) if len(df) > 0 else 5.0
     
-    if "weight_slider" not in st.session_state: st.session_state.weight_slider = 15.0
-    if "weight_num" not in st.session_state: st.session_state.weight_num = 15.0
+    # 動態計算一個安全預設值 (確保一定喺 min 同 max 之間)
+    safe_default_weight = max(min_weight_in_sheet, min(15.0, max_weight_in_sheet))
+    
+    if "weight_slider" not in st.session_state: st.session_state.weight_slider = safe_default_weight
+    if "weight_num" not in st.session_state: st.session_state.weight_num = safe_default_weight
+
+    # 確保切換狀態或數據變動時，數值絕對不會越界
+    st.session_state.weight_slider = max(min_weight_in_sheet, min(st.session_state.weight_slider, max_weight_in_sheet))
+    st.session_state.weight_num = max(min_weight_in_sheet, min(st.session_state.weight_num, max_weight_in_sheet))
 
     def update_w_slider(): st.session_state.weight_num = st.session_state.weight_slider
     def update_w_num(): st.session_state.weight_slider = st.session_state.weight_num
@@ -216,7 +221,7 @@ with controls_container:
     st.markdown('</div>', unsafe_allow_html=True)
 
 target_force = st.session_state.my_slider
-target_weight = st.session_state.weight_slider  # 取得橫線的目標重量
+target_weight = st.session_state.weight_slider  
 
 # 判定卡片Zone
 if target_force <= z_soft[1]: current_zone_class = "zone-soft"
@@ -226,7 +231,7 @@ else: current_zone_class = "zone-firm"
 st.markdown("<hr style='border:none; border-top:1px solid #e2e8f0; margin: 15px 0 25px 0;'>", unsafe_allow_html=True)
 
 # ==========================================
-# 5. 圖表 (新增橫向移動虛線)
+# 5. 圖表 
 # ==========================================
 fig = go.Figure()
 
@@ -262,14 +267,14 @@ fig.update_layout(
     legend=dict(orientation="h", y=1.1, x=0.5, xanchor="center")
 )
 
-# 1. 直向力度紅線 (原本的線)
+# 1. 直向力度紅線
 fig.add_vline(x=target_force, line_dash="solid", line_color="#ef4444", line_width=2.5)
 
-# 2. 【新功能】橫向重量虛線 (隨 Slider 上下移動)
+# 2. 橫向重量虛線 
 fig.add_hline(
     y=target_weight, 
     line_dash="dash", 
-    line_color="#4b5563",  # 深灰色，唔會同條紅線搶色
+    line_color="#4b5563",  
     line_width=2,
     annotation_text=f"Target: {target_weight:.1f} oz", 
     annotation_position="bottom right",
