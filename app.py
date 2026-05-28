@@ -22,31 +22,30 @@ st.markdown("""
     .block-container { max-width: 1100px !important; padding: 2rem 1rem !important; }
 
     /* 系統說明文字 */
-    .system-desc { font-size: 14px; color: #64748b; font-weight: 500; margin-bottom: 30px; line-height: 1.5; margin-top: 10px; }
+    .system-desc { font-size: 14px; color: #64748b; font-weight: 500; margin-bottom: 25px; line-height: 1.5; margin-top: 10px; }
 
     /* 控制面板標籤 */
-    .control-label { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .control-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 5px; }
     
-    /* Streamlit Slider (滑動條) */
-    div[data-baseweb="slider"] { margin-top: 10px; padding-bottom: 10px; }
+    /* Streamlit Slider (滑動條) 美化 */
+    div[data-baseweb="slider"] { margin-top: 5px; padding-bottom: 5px; }
     div[data-baseweb="slider"] > div { background-color: #e2e8f0; }
     
     div[data-baseweb="slider"] [role="slider"] {
         background-color: var(--primary) !important; 
         border: 2px solid #ffffff !important;
         box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.15) !important; 
-        width: 22px !important; 
-        height: 22px !important;
+        width: 20px !important; 
+        height: 20px !important;
         transition: box-shadow 0.2s ease, transform 0.2s ease !important;
     }
     div[data-baseweb="slider"] [role="slider"]:hover {
         box-shadow: 0 0 0 8px rgba(37, 99, 235, 0.25) !important;
         cursor: grab !important;
     }
-    div[data-baseweb="slider"] [role="slider"]:active { cursor: grabbing !important; }
     div[data-testid="stThumbValue"] { display: none !important; } 
     
-    /* 卡片設計與預設狀態 */
+    /* 卡片設計 */
     .loft-head-box { text-align: center; height: 100%; display: flex; flex-direction: column; justify-content: center; padding-top: 10px; }
     .loft-title { font-size: 36px; font-weight: 800; color: #0f172a; line-height: 1; }
     .loft-sub { font-size: 12px; font-weight: 600; color: #64748b; margin-top: 5px; }
@@ -61,7 +60,7 @@ st.markdown("""
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); 
     }
     
-    /* 【新增】卡片三色分區動態樣式 */
+    /* 卡片三色分區樣式 */
     .custom-card.zone-soft { background-color: #f0f9ff; border-color: #bae6fd; }
     .custom-card.zone-soft:hover { background-color: #e0f2fe; border-color: #7dd3fc; }
     
@@ -100,7 +99,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 頂部標題與真實有效的 Print 按鈕
+# 頂部標題與 Print 按鈕
 # ==========================================
 col_title, col_print = st.columns([5, 1])
 with col_title:
@@ -129,7 +128,7 @@ with col_print:
 
 st.markdown("""
 <div class="system-desc">
-    Please set the target compression depth first. As you adjust the target firmness force, the system calculates the required fill weight (oz) and recommends the corresponding pillow options.
+    Please set the target compression depth first. Use the controllers below to adjust the target firmness force (vertical line) and target reference weight (horizontal line) to analyze pillow specifications.
 </div>
 """, unsafe_allow_html=True)
 
@@ -155,16 +154,17 @@ ALL_SIZES_SHORT = ['Std', 'Q', 'K']
 SIZE_FULL_NAMES = {'Std': 'Standard Size', 'Q': 'Queen Size', 'K': 'King Size'}
 
 # ==========================================
-# 4. 控制面板
+# 4. 控制面板 (升級為雙軸雙向控制器)
 # ==========================================
 controls_container = st.container()
 
 with controls_container:
     st.markdown('<div class="controls-row">', unsafe_allow_html=True)
-    c1, c2, c3 = st.columns([1.5, 3, 1.2])
-
-    with c1:
-        st.markdown("<div class='control-label'>Compression Depth</div>", unsafe_allow_html=True)
+    
+    # 拆分為上下或左右並排，這裡用兩橫排處理，第一排處理 Depth，第二排處理 Force 同埋 Weight 嘅 Slider
+    c_mode, c_spacer = st.columns([2, 4])
+    with c_mode:
+        st.markdown("<div class='control-label'>1. Compression Depth</div>", unsafe_allow_html=True)
         mode = st.radio("Mode", ['50% (Half of Pillow)', '33% (One-Third of Pillow)'], label_visibility="collapsed")
 
     if '50%' in mode:
@@ -174,60 +174,59 @@ with controls_container:
         min_f, max_f, def_f, force_col = 2000, 4000, 3000, 'Force_33_g'
         z_soft, z_med, z_firm = [2000, 2500], [2500, 3500], [3500, 4000]
 
-    if "my_slider" not in st.session_state:
-        st.session_state.my_slider = def_f
-    if "my_num" not in st.session_state:
-        st.session_state.my_num = def_f
+    st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+    
+    # 力度與重量的雙向控制排版
+    col_f_slide, col_f_num, col_w_slide, col_w_num = st.columns([2.5, 1, 2.5, 1])
 
+    # --- 力度大腦初始化 ---
+    if "my_slider" not in st.session_state: st.session_state.my_slider = def_f
+    if "my_num" not in st.session_state: st.session_state.my_num = def_f
     if st.session_state.my_slider < min_f or st.session_state.my_slider > max_f:
         st.session_state.my_slider = def_f
         st.session_state.my_num = def_f
 
-    def update_from_slider():
-        st.session_state.my_num = st.session_state.my_slider
+    def update_from_slider(): st.session_state.my_num = st.session_state.my_slider
+    def update_from_num(): st.session_state.my_slider = st.session_state.my_num
 
-    def update_from_num():
-        st.session_state.my_slider = st.session_state.my_num
+    with col_f_slide:
+        st.markdown("<div class='control-label'>2. Target Firmness Force (X-Axis)</div>", unsafe_allow_html=True)
+        st.slider("Force Slider", min_f, max_f, key="my_slider", step=1, on_change=update_from_slider, label_visibility="collapsed")
+    with col_f_num:
+        st.markdown("<div class='control-label' style='text-align:right;'>Force (g)</div>", unsafe_allow_html=True)
+        st.number_input("Force Input", min_f, max_f, key="my_num", step=1, on_change=update_from_num, label_visibility="collapsed")
 
-    with c2:
-        st.markdown("<div class='control-label' style='text-align: center;'>Target Firmness Force</div>", unsafe_allow_html=True)
-        st.slider(
-            "Target Force Slider", 
-            min_value=min_f, 
-            max_value=max_f, 
-            key="my_slider", 
-            step=1, 
-            on_change=update_from_slider, 
-            label_visibility="collapsed"
-        )
+    # --- 重量大腦初始化 (【新功能】橫線控制器) ---
+    max_weight_in_sheet = float(df['Weight_Oz'].max()) if len(df) > 0 else 40.0
+    min_weight_in_sheet = float(df['Weight_Oz'].min()) if len(df) > 0 else 5.0
+    
+    if "weight_slider" not in st.session_state: st.session_state.weight_slider = 15.0
+    if "weight_num" not in st.session_state: st.session_state.weight_num = 15.0
 
-    with c3:
-        st.markdown("<div class='control-label' style='text-align: right;'>Exact Force (g)</div>", unsafe_allow_html=True)
-        st.number_input(
-            "Exact Grams Input", 
-            min_value=min_f, 
-            max_value=max_f, 
-            key="my_num", 
-            step=1, 
-            on_change=update_from_num, 
-            label_visibility="collapsed"
-        )
+    def update_w_slider(): st.session_state.weight_num = st.session_state.weight_slider
+    def update_w_num(): st.session_state.weight_slider = st.session_state.weight_num
+
+    with col_w_slide:
+        st.markdown("<div class='control-label'>3. Target Reference Weight (Y-Axis Line)</div>", unsafe_allow_html=True)
+        st.slider("Weight Slider", min_value=min_weight_in_sheet, max_value=max_weight_in_sheet, key="weight_slider", step=0.1, on_change=update_w_slider, label_visibility="collapsed")
+    with col_w_num:
+        st.markdown("<div class='control-label' style='text-align:right;'>Weight (oz)</div>", unsafe_allow_html=True)
+        st.number_input("Weight Input", min_value=min_weight_in_sheet, max_value=max_weight_in_sheet, key="weight_num", step=0.1, on_change=update_w_num, label_visibility="collapsed")
+
     st.markdown('</div>', unsafe_allow_html=True)
 
 target_force = st.session_state.my_slider
+target_weight = st.session_state.weight_slider  # 取得橫線的目標重量
 
-# 【新增】判斷當前力度屬於哪個 Zone，並賦予對應的 CSS 類別
-if target_force <= z_soft[1]:
-    current_zone_class = "zone-soft"
-elif target_force <= z_med[1]:
-    current_zone_class = "zone-med"
-else:
-    current_zone_class = "zone-firm"
+# 判定卡片Zone
+if target_force <= z_soft[1]: current_zone_class = "zone-soft"
+elif target_force <= z_med[1]: current_zone_class = "zone-med"
+else: current_zone_class = "zone-firm"
 
 st.markdown("<hr style='border:none; border-top:1px solid #e2e8f0; margin: 15px 0 25px 0;'>", unsafe_allow_html=True)
 
 # ==========================================
-# 5. 圖表 (圖表顏色分區)
+# 5. 圖表 (新增橫向移動虛線)
 # ==========================================
 fig = go.Figure()
 
@@ -238,7 +237,6 @@ fig.add_vrect(x0=z_med[0], x1=z_med[1], fillcolor="#fef08a", opacity=0.4, layer=
               annotation_text="<b>MEDIUM</b>", annotation_position="top left", annotation_font_color="#a16207", annotation_font_size=13)
 fig.add_vrect(x0=z_firm[0], x1=z_firm[1], fillcolor="#fee2e2", opacity=0.6, layer="below", line_width=0, 
               annotation_text="<b>FIRM</b>", annotation_position="top left", annotation_font_color="#b91c1c", annotation_font_size=13)
-
 
 grid_data = {}
 
@@ -263,12 +261,26 @@ fig.update_layout(
     yaxis=dict(showgrid=True, gridcolor='#f1f5f9'),
     legend=dict(orientation="h", y=1.1, x=0.5, xanchor="center")
 )
+
+# 1. 直向力度紅線 (原本的線)
 fig.add_vline(x=target_force, line_dash="solid", line_color="#ef4444", line_width=2.5)
+
+# 2. 【新功能】橫向重量虛線 (隨 Slider 上下移動)
+fig.add_hline(
+    y=target_weight, 
+    line_dash="dash", 
+    line_color="#4b5563",  # 深灰色，唔會同條紅線搶色
+    line_width=2,
+    annotation_text=f"Target: {target_weight:.1f} oz", 
+    annotation_position="bottom right",
+    annotation_font_color="#1f2937",
+    annotation_font_size=11
+)
 
 st.plotly_chart(fig, width='stretch', config={'displayModeBar': False})
 
 # ==========================================
-# 6. Grid 顯示區 (卡片動態顏色)
+# 6. Grid 顯示區 
 # ==========================================
 st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
 
@@ -291,7 +303,6 @@ for loft in ALL_LOFTS:
             
             with row_cols[idx + 1]:
                 if isinstance(result, (int, float)):
-                    # 【套用 current_zone_class】讓卡片底色跟隨上方分區顏色！
                     st.markdown(f"""
                         <div class="custom-card {current_zone_class}">
                             <span class="badge {badge_color_class}">{full_size_name}</span>
@@ -302,7 +313,6 @@ for loft in ALL_LOFTS:
                         </div>
                     """, unsafe_allow_html=True)
                 else:
-                    # 無資料的虛線框維持透明
                     st.markdown(f"""
                         <div class="custom-card empty" style="border-style: dashed; background: transparent !important; border-color: #cbd5e1 !important;">
                             <span class="badge {badge_color_class}" style="opacity: 0.5;">{full_size_name}</span>
